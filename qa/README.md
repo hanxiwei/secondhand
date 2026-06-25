@@ -5,6 +5,7 @@
 ```text
 qa/
 ├─ api/       接口自动化
+├─ perf/      Locust 性能测试
 ├─ ui/        Playwright UI 自动化
 ├─ config/    环境配置
 ├─ scripts/   报告摘要与飞书通知脚本
@@ -63,7 +64,21 @@ python qa/scripts/notify_feishu.py
 4. 如果未启用 DeepSeek 或接口调用失败，会自动回退到本地规则生成报告
 5. `notify_feishu.py` 在未配置 `webhook` 时会自动跳过，不会直接报错中断
 
-## 7. 推荐执行顺序
+## 7. 运行性能测试
+
+```bash
+python qa/scripts/run_perf_tests.py
+```
+
+说明：
+
+1. 性能测试基于 `Locust`，脚本位于 `qa/perf/locustfile.py`
+2. 当前默认覆盖商品搜索、商品详情、分类树查询、订单列表与下单请求
+3. 压测会自动登录买家/卖家账号，并创建临时商品池用于模拟下单流量
+4. 运行完成后会在 `qa/reports/perf/` 下输出 HTML 与 CSV 报告
+5. 可通过 `performance.users / spawn_rate / run_time / product_pool_size` 调整压测强度
+
+## 8. 推荐执行顺序
 
 ```bash
 python qa/scripts/run_all_tests.py
@@ -78,7 +93,7 @@ python qa/scripts/notify_feishu.py
 2. 如果你只想单独调试某一层，也可以分别执行 `run_api_tests.py` 和 `run_ui_tests.py`。
 3. 如果你在 Jenkins 中接入 Allure 插件，建议直接在 Jenkins 页面查看报告。
 
-## 8. Jenkins 集成
+## 9. Jenkins 集成
 
 项目根目录已提供 `Jenkinsfile` 初版，可用于：
 
@@ -98,7 +113,7 @@ python qa/scripts/notify_feishu.py
 如果当前飞书机器人没有开启签名校验，可以将 `FEISHU_SECRET` 留空。
 如果启用 DeepSeek，建议优先通过 Jenkins 环境变量或凭据注入 `DEEPSEEK_API_KEY`，不要把真实密钥直接写入配置文件。
 
-## 9. Allure 使用说明
+## 10. Allure 使用说明
 
 当前推荐方式：
 
@@ -106,7 +121,7 @@ python qa/scripts/notify_feishu.py
 2. 在 `全局工具配置` 中配置 `Allure Commandline`
 3. 通过 Jenkins 页面直接查看 Allure 报告
 
-## 10. DeepSeek 报告生成说明
+## 11. DeepSeek 报告生成说明
 
 配置方式如下：
 

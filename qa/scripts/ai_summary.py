@@ -200,12 +200,26 @@ def build_report_excerpt(report_text: str, max_lines: int = 4) -> str:
     return "\n".join(cleaned[:max_lines])
 
 
+def get_default_report_url(config: dict[str, Any]) -> str:
+    report_config = config.get("report", {})
+    build_url = os.getenv("BUILD_URL", "").rstrip("/")
+    if build_url:
+        return f"{build_url}/allure/"
+    return str(report_config.get("report_url", "")).strip()
+
+
+def get_default_ai_report_url() -> str:
+    build_url = os.getenv("BUILD_URL", "").rstrip("/")
+    if build_url:
+        return f"{build_url}/artifact/qa/reports/deepseek-report.md"
+    return ""
+
+
 def build_summary(results_dir: Path) -> dict[str, Any]:
     config = load_test_config()
     project_config = config.get("project", {})
-    report_config = config.get("report", {})
-    report_url = os.getenv("REPORT_URL", report_config.get("report_url", ""))
-    ai_report_url = os.getenv("AI_REPORT_URL", "")
+    report_url = os.getenv("REPORT_URL", "").strip() or get_default_report_url(config)
+    ai_report_url = os.getenv("AI_REPORT_URL", "").strip() or get_default_ai_report_url()
     total = 0
     passed = 0
     failed = 0

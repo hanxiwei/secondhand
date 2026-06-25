@@ -38,11 +38,18 @@ def build_sign(secret: str) -> tuple[str, str]:
     return timestamp, sign
 
 
+def get_fallback_url(path: str) -> str:
+    build_url = os.getenv("BUILD_URL", "").rstrip("/")
+    if not build_url:
+        return ""
+    return f"{build_url}/{path.lstrip('/')}"
+
+
 def build_message(project_name: str, summary: dict[str, Any]) -> str:
-    report_url = summary.get("report_url", "")
-    ai_report_url = summary.get("ai_report_url", "")
+    report_url = summary.get("report_url", "") or get_fallback_url("allure/")
+    ai_report_url = summary.get("ai_report_url", "") or get_fallback_url("artifact/qa/reports/deepseek-report.md")
     llm_brief = summary.get("llm_brief", "")
-    summary_line = llm_brief.splitlines()[0].strip() if llm_brief else ""
+    summary_text = "；".join(line.strip("- ").strip() for line in llm_brief.splitlines() if line.strip())
     failure_categories = summary.get("failure_categories", {})
     failure_text = "，".join(f"{name} {count}" for name, count in failure_categories.items())
     failure_line = f"失败分类: {failure_text}" if failure_text else "失败分类: 无"
@@ -61,7 +68,7 @@ def build_message(project_name: str, summary: dict[str, Any]) -> str:
         f"失败: {summary.get('failed', 0)}\n"
         f"通过率: {summary.get('pass_rate', 0)}%\n"
         f"{failure_line}\n"
-        f"摘要: {summary_line or '详见报告'}"
+        f"AI摘要: {summary_text or '详见报告'}"
         f"{f'\\n{links_text}' if links_text else ''}"
     )
 

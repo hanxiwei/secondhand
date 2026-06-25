@@ -2,14 +2,24 @@ pipeline {
   agent {
     node {
       label ''
-      customWorkspace 'D:\\jenkins-workspace\\second-hand02'
+      customWorkspace 'D:\\python\\second-hand02'
     }
+  }
+
+  options {
+    disableConcurrentBuilds()
+  }
+
+  parameters {
+    booleanParam(name: 'RUN_FUNCTIONAL_TESTS', defaultValue: true, description: '是否执行接口 + UI 自动化测试')
+    booleanParam(name: 'RUN_PERF_TESTS', defaultValue: false, description: '是否执行 Locust 性能压测')
+    string(name: 'PERF_USERS', defaultValue: '10', description: '性能压测并发用户数')
+    string(name: 'PERF_SPAWN_RATE', defaultValue: '2', description: '性能压测每秒启动用户数')
+    string(name: 'PERF_RUN_TIME', defaultValue: '1m', description: '性能压测持续时间，例如 1m / 3m')
   }
 
   environment {
     PYTHON_EXE = 'D:\\immovable\\python313\\python.exe'
-    REPO_URL = 'https://github.com/hanxiwei/secondhand.git'
-    REPO_BRANCH = 'main'
     FEISHU_WEBHOOK = credentials('FEISHU_WEBHOOK')
     FEISHU_SECRET = ''
     API_HEALTH_URL = 'http://127.0.0.1:3000/api/categories/tree'
@@ -18,28 +28,23 @@ pipeline {
     AI_REPORT_URL = ''
     TEST_EXIT_CODE = '0'
     GATE_EXIT_CODE = '0'
-  }
-
-  triggers {
-    cron('H/5 * * * *')
+    PERF_EXIT_CODE = '0'
   }
 
   stages {
-    stage('Sync Code') {
+    stage('Prepare Workspace') {
       steps {
         powershell '''
-          $repoUrl = $env:REPO_URL
-          $branch = $env:REPO_BRANCH
-
-          if (-not (Test-Path '.git')) {
-            Write-Host "Workspace is not initialized, cloning $repoUrl ..."
-            git clone --branch $branch --single-branch $repoUrl .
-          } else {
-            Write-Host "Fetching latest code from $repoUrl ..."
-            git remote set-url origin $repoUrl
-            git fetch origin $branch
-            git checkout $branch
-            git reset --hard origin/$branch
+          $paths = @(
+            'qa\\reports\\summary.json',
+            'qa\\reports\\deepseek-report.md',
+            'qa\\reports\\perf'
+          )
+          foreach ($path in $paths) {
+            if (Test-Path $path) {
+              Remove-Item -Recurse -Force $path
+              Write-Host "已清理旧产物: $path"
+            }
           }
         '''
       }
@@ -77,8 +82,8 @@ pipeline {
           Stop-ProcessByPort 5191
 
           $serverUrl = $env:API_HEALTH_URL
-          Write-Host "Starting backend service from Jenkins workspace..."
-          Start-Process cmd.exe -ArgumentList '/c', 'npm run start > ..\\qa\\reports\\server.log 2>&1' -WorkingDirectory "$env:WORKSPACE\\server" -WindowStyle Hidden
+          Write-Host "Starting backend service from local workspace..."
+          Start-Process cmd.exe -ArgumentList '/c', 'npm run start > ..\\qa\\reports\\server.log 2>&1' -WorkingDirectory 'D:\\python\\second-hand02\\server' -WindowStyle Hidden
           $deadline = (Get-Date).AddMinutes(2)
           $ready = $false
           while ((Get-Date) -lt $deadline) {
@@ -95,8 +100,8 @@ pipeline {
           }
 
           $webUrl = $env:WEB_HEALTH_URL
-          Write-Host "Starting frontend service from Jenkins workspace..."
-          Start-Process cmd.exe -ArgumentList '/c', 'npm run dev -- --host 127.0.0.1 --port 5191 > ..\\qa\\reports\\web.log 2>&1' -WorkingDirectory "$env:WORKSPACE\\web" -WindowStyle Hidden
+          Write-Host "Starting frontend service from local workspace..."
+          Start-Process cmd.exe -ArgumentList '/c', 'npm run dev -- --host 127.0.0.1 --port 5191 > ..\\qa\\reports\\web.log 2>&1' -WorkingDirectory 'D:\\python\\second-hand02\\web' -WindowStyle Hidden
           $deadline = (Get-Date).AddMinutes(2)
           $ready = $false
           while ((Get-Date) -lt $deadline) {
@@ -116,6 +121,9 @@ pipeline {
     }
 
     stage('Run Automated Tests') {
+      when {
+        expression { return params.RUN_FUNCTIONAL_TESTS }
+      }
       steps {
         script {
           env.TEST_EXIT_CODE = bat(
@@ -127,7 +135,30 @@ pipeline {
       }
     }
 
+    stage('Run Performance Tests') {
+      when {
+        expression { return params.RUN_PERF_TESTS }
+      }
+      steps {
+        script {
+          env.PERF_EXIT_CODE = bat(
+            returnStatus: true,
+            script: """
+              set PERF_USERS=${params.PERF_USERS}
+              set PERF_SPAWN_RATE=${params.PERF_SPAWN_RATE}
+              set PERF_RUN_TIME=${params.PERF_RUN_TIME}
+              "%PYTHON_EXE%" qa/scripts/run_perf_tests.py
+            """.stripIndent()
+          ).toString()
+          echo "性能压测退出码: ${env.PERF_EXIT_CODE}"
+        }
+      }
+    }
+
     stage('Generate Summary') {
+      when {
+        expression { return params.RUN_FUNCTIONAL_TESTS }
+      }
       steps {
         script {
           env.REPORT_URL = "${env.BUILD_URL}allure/"
@@ -138,6 +169,9 @@ pipeline {
     }
 
     stage('Quality Gate') {
+      when {
+        expression { return params.RUN_FUNCTIONAL_TESTS }
+      }
       steps {
         script {
           env.GATE_EXIT_CODE = bat(
@@ -154,10 +188,11 @@ pipeline {
         script {
           def testExitCode = env.TEST_EXIT_CODE as Integer
           def gateExitCode = env.GATE_EXIT_CODE as Integer
-          if (testExitCode != 0 || gateExitCode != 0) {
-            error("流水线未通过：自动化测试退出码=${testExitCode}，质量门禁退出码=${gateExitCode}")
+          def perfExitCode = env.PERF_EXIT_CODE as Integer
+          if (testExitCode != 0 || gateExitCode != 0 || perfExitCode != 0) {
+            error("流水线未通过：自动化测试退出码=${testExitCode}，质量门禁退出码=${gateExitCode}，性能压测退出码=${perfExitCode}")
           }
-          echo '流水线通过：自动化测试与质量门禁均已通过。'
+          echo '流水线通过：功能自动化、质量门禁与性能压测任务均已完成。'
         }
       }
     }
@@ -168,6 +203,7 @@ pipeline {
       archiveArtifacts artifacts: 'qa/reports/summary.json', fingerprint: true, allowEmptyArchive: true
       archiveArtifacts artifacts: 'qa/reports/deepseek-report.md', fingerprint: true, allowEmptyArchive: true
       archiveArtifacts artifacts: 'qa/reports/*.log', fingerprint: false, allowEmptyArchive: true
+      archiveArtifacts artifacts: 'qa/reports/perf/*', fingerprint: false, allowEmptyArchive: true
       script {
         if (fileExists('allure-results')) {
           allure([
@@ -179,7 +215,11 @@ pipeline {
           ])
         }
       }
-      bat(returnStatus: true, script: '"%PYTHON_EXE%" qa/scripts/notify_feishu.py')
+      script {
+        if (fileExists('qa/reports/summary.json')) {
+          bat(returnStatus: true, script: '"%PYTHON_EXE%" qa/scripts/notify_feishu.py')
+        }
+      }
       powershell '''
         if (Test-Path 'allure-results') {
           Remove-Item -Recurse -Force 'allure-results'

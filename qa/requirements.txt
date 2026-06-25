@@ -4,3 +4,4 @@ PyYAML>=6.0,<7
 allure-pytest>=2.16,<3
 pytest-playwright>=0.7,<1
 playwright>=1.58,<2
+locust>=2.37,<3

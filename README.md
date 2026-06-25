@@ -169,13 +169,6 @@ python qa/scripts/notify_feishu.py
 - `FEISHU_SECRET`
 - `DEEPSEEK_API_KEY`
 
-## 适合作为哪些项目展示
-
-- 毕业设计项目
-- 前后端分离全栈练手项目
-- 测试开发 / QA 自动化项目
-- 简历中的工程化质量保障项目
-
 ## 相关文档
 
 - `校园二手交易平台-PRD产品需求文档.md`

@@ -1,0 +1,21 @@
+CREATE TABLE IF NOT EXISTS `report` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `report_no` varchar(50) NOT NULL,
+  `reporter_id` bigint NOT NULL,
+  `target_type` tinyint NOT NULL DEFAULT 1,
+  `target_id` bigint NOT NULL,
+  `product_id` bigint NOT NULL,
+  `seller_id` bigint NOT NULL,
+  `reason` varchar(50) NOT NULL,
+  `description` varchar(255) DEFAULT NULL,
+  `status` tinyint NOT NULL DEFAULT 0,
+  `handle_note` varchar(255) DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_report_no` (`report_no`),
+  KEY `idx_report_reporter_id` (`reporter_id`),
+  KEY `idx_report_product_id` (`product_id`),
+  KEY `idx_report_seller_id` (`seller_id`),
+  KEY `idx_report_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

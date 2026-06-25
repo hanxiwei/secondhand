@@ -1,0 +1,22 @@
+CREATE TABLE IF NOT EXISTS `trade_order` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `order_no` varchar(50) NOT NULL,
+  `product_id` bigint NOT NULL,
+  `buyer_id` bigint NOT NULL,
+  `seller_id` bigint NOT NULL,
+  `session_id` bigint DEFAULT NULL,
+  `deal_price` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `status` tinyint NOT NULL DEFAULT 0,
+  `remark` varchar(255) DEFAULT NULL,
+  `confirmed_at` datetime DEFAULT NULL,
+  `completed_at` datetime DEFAULT NULL,
+  `canceled_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_trade_order_no` (`order_no`),
+  KEY `idx_trade_order_product_id` (`product_id`),
+  KEY `idx_trade_order_buyer_id` (`buyer_id`),
+  KEY `idx_trade_order_seller_id` (`seller_id`),
+  KEY `idx_trade_order_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

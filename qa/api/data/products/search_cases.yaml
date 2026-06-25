@@ -1,0 +1,14 @@
+- name: "搜索宿舍小桌"
+  keyword: "小桌"
+  expected_min_total: 1
+  expected_title_contains: "小桌"
+
+- name: "搜索机械键盘"
+  keyword: "键盘"
+  expected_min_total: 1
+  expected_title_contains: "键盘"
+
+- name: "搜索不存在的商品"
+  keyword: "绝对不存在的测试商品关键词"
+  expected_min_total: 0
+  expected_title_contains: ""

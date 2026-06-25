@@ -1,0 +1,15 @@
+qa/config/env.yaml
+qa/reports/*.json
+qa/reports/*.md
+qa/reports/*.log
+allure-results/
+allure-report/
+__pycache__/
+*.pyc
+.pytest_cache/
+server/node_modules/
+server/dist/
+web/node_modules/
+web/dist/
+web/dist-ssr/
+.env
